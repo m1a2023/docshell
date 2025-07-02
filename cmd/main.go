@@ -1,6 +1,7 @@
 package main
 
 import (
+	docshell "docshell/internal/server"
 	"docshell/internal/storage"
 	"flag"
 	"fmt"
@@ -9,12 +10,19 @@ import (
 
 // Server variables
 var (
-	PORT 		string
+	PORT 		int
 	HOST 		string
 )
 
+func main() {
 
-func main() { 
+	// Opening server
+	doc := docshell.New(HOST, PORT)
+	
+	doc.Use(docshell.LoggingMiddleware)
+	doc.Use(docshell.RecoveryMiddleware)
+	
+	doc.Run() 
 
 }
 
@@ -22,7 +30,6 @@ func main() {
 func init() {
 	// Setting up flags for using 
 	setupFlags()
-
 }
 
 func setupFlags() {
@@ -30,8 +37,8 @@ func setupFlags() {
 	// Host and Port
 	flag.StringVar(&HOST, "host", "0.0.0.0", "IP address to serve on")
 	flag.StringVar(&HOST, "h", "0.0.0.0", "IP address shortcut")
-	flag.StringVar(&PORT, "port", "8080", "Port to listen on")
-	flag.StringVar(&PORT, "p", "8080", "Port shortcut")
+	flag.IntVar(&PORT, "port", 8080, "Port to listen on")
+	flag.IntVar(&PORT, "p", 8080, "Port shortcut")
 
 	// Database Config
 	flag.IntVar(&storage.MAX_IDLE_TIME, "max_idle_time", 5, "Max idle time for DB connections (in minutes)")
@@ -47,7 +54,7 @@ func setupFlags() {
 		printUsage()
 	}
 
-	fmt.Printf("\nServer started at http://%s:%s\n", HOST, PORT)
+	fmt.Printf("\nServer started at http://%s:%d\n", HOST, PORT)
 	fmt.Printf("DB Pool Settings:\n")
 	fmt.Printf("  Max Idle Time: %d min\n", storage.MAX_IDLE_TIME)
 	fmt.Printf("  Max Connection Lifetime: %d min\n", storage.MAX_CONNECTION_LIFE)
@@ -59,7 +66,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, "Usage: cmd [OPTIONS]\n\n")
 	fmt.Fprintf(os.Stderr, "Options:\n")
 	fmt.Fprintf(os.Stderr, "  -h, --host string               IP address to serve on (default \"%s\")\n", HOST)
-	fmt.Fprintf(os.Stderr, "  -p, --port string               Port to listen on (default \"%s\")\n", PORT)
+	fmt.Fprintf(os.Stderr, "  -p, --port string               Port to listen on (default \"%d\")\n", PORT)
 	fmt.Fprintf(os.Stderr, "      --max_idle_time int         Max idle time for DB connections (minutes, default %d)\n", storage.MAX_IDLE_TIME)
 	fmt.Fprintf(os.Stderr, "      --max_conn_life int         Max connection lifetime (minutes, default %d)\n", storage.MAX_CONNECTION_LIFE)
 	fmt.Fprintf(os.Stderr, "      --max_open_conns int        Max open connections to DB (default %d)\n", storage.MAX_OPEN_CONNECTIONS)

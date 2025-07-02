@@ -28,7 +28,6 @@ func init() {
 	var err error
 	db, err = sql.Open("postgres", CONNECTION_STRING)
 	if err != nil {
-		log.Fatalln(CONNECTION_STRING)
 		log.Fatal(err)
 	}
 	
@@ -42,12 +41,13 @@ func init() {
 	if ok, err := CheckConnecton(); !ok {
 		log.Fatal(err)
 	}
-
 }
+
 
 func GetConnection() *sql.DB {
 	return db
 }
+
 
 func CheckConnecton() (bool, error) {
 	if err := db.Ping(); err != nil {
