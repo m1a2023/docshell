@@ -1,11 +1,17 @@
 package main
 
 import (
+	"context"
 	docshell "docshell/internal/server"
 	"docshell/internal/storage"
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 // Server variables
@@ -15,15 +21,36 @@ var (
 )
 
 func main() {
+	// Graceful shutdown 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGABRT)
+	defer stop()
 
 	// Opening server
 	doc := docshell.New(HOST, PORT)
-	
+	// Apply middlewares
 	doc.Use(docshell.LoggingMiddleware)
 	doc.Use(docshell.RecoveryMiddleware)
-	
-	doc.Run() 
+	// Adding routes
+	//
 
+	// Start server with goroutine 
+	go func() {
+		if err := doc.Run(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server %s:%d failed to start - %v.", HOST, PORT, err)
+		}
+	} ()
+	// Wait for context to be cancelled 
+	<- ctx.Done()
+
+	// Create a new context with a timeout for the shutdown process
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10 * time.Second)
+	defer cancelShutdown()
+	// Attempt to gracefully shut down server
+	if err := doc.Shutdown(shutdownCtx); err != nil {
+		log.Fatalf("Server shutdown failed - %v.", err)
+	}
+
+	log.Println("Server gracefully stopped.")
 }
 
 
@@ -49,13 +76,8 @@ func setupFlags() {
 	// Usage
 	flag.Usage = printHelp
 	flag.Parse()
-
-	if len(flag.Args()) == 0 {
-		printUsage()
-	}
-
-	fmt.Printf("\nServer started at http://%s:%d\n", HOST, PORT)
-	fmt.Printf("DB Pool Settings:\n")
+	
+	fmt.Printf("Database settings:\n")
 	fmt.Printf("  Max Idle Time: %d min\n", storage.MAX_IDLE_TIME)
 	fmt.Printf("  Max Connection Lifetime: %d min\n", storage.MAX_CONNECTION_LIFE)
 	fmt.Printf("  Max Open Connections: %d\n", storage.MAX_OPEN_CONNECTIONS)

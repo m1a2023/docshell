@@ -40,6 +40,8 @@ func init() {
 	// Check connection 
 	if ok, err := CheckConnecton(); !ok {
 		log.Fatal(err)
+	} else {
+		log.Printf("Connection to \"%s\" established.\n", CONNECTION_STRING)
 	}
 }
 
