@@ -2,9 +2,10 @@ package service
 
 import (
 	"context"
-	utils "docshell/internal/v1/docs"
 	"docshell/internal/v1/docs/models"
 	"docshell/internal/v1/docs/repository"
+	"docshell/internal/v1/utils"
+	"log"
 
 	"docshell/internal/v1/storage"
 	"net/http"
@@ -46,6 +47,46 @@ func GetAllDocuments(ctx context.Context, w http.ResponseWriter, r *http.Request
 				StatusCode: http.StatusInternalServerError,
 			})
 		}
+	default: // Success
+		utils.SendJSONResponse(w, res)
+	}
+}
+
+func GetDocumentById(ctx context.Context, w http.ResponseWriter, r *http.Request, id int) {
+	// Set timeout context
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// Get db connection
+	con := storage.GetConnection()
+
+	// Get document
+	doc, err := repository.GetDocumentById(ctx, con, id)
+	if err != nil {
+		utils.SendJSONResponse(w, models.ResponseCode{
+			StatusCode: http.StatusInternalServerError,
+		})
+		log.Println(err)
+		return
+	}
+	// Send NoContent if empty
+	if doc == (models.Document{}) {
+		utils.SendJSONResponse(w, models.ResponseCode{
+			StatusCode: http.StatusNoContent,
+		})
+		return
+	}
+	// Build response
+	res := models.ResponseSingleDocument{
+		StatusCode: http.StatusOK,
+		Document:   doc,
+	}
+
+	select {
+	case <-ctx.Done(): // Context exceed
+		utils.SendJSONResponse(w, models.ResponseCode{
+			StatusCode: http.StatusRequestTimeout,
+		})
 	default: // Success
 		utils.SendJSONResponse(w, res)
 	}

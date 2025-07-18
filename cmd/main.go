@@ -4,13 +4,15 @@ import (
 	"context"
 	doconf "docshell/internal/v1/config"
 	"docshell/internal/v1/docs/handlers"
-	docshell "docshell/internal/v1/server"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 // TODO Move Graceful shutdown to function
@@ -18,20 +20,27 @@ func main() {
 	cfg := doconf.Config.Service.Web
 
 	// Opening server
-	doc := docshell.New(cfg.Host, cfg.Port)
+	doc := chi.NewRouter()
 
 	// Apply middlewares
-	doc.Use(docshell.LoggingMiddleware)
-	doc.Use(docshell.RecoveryMiddleware)
+	doc.Use(middleware.Logger)
+	doc.Use(middleware.Recoverer)
+
 	// Adding routes
-	//
-	doc.GetRouter().GET("/", handlers.GetAllDocuments)
+	doc.Route("/docs", func(r chi.Router) {
+		r.Get("/", handlers.GetAllDocuments)
+		r.Get("/id/{id}", handlers.GetDocumentById)
+	})
 
 	// Start server with goroutine
 	go func() {
-		if err := doc.Run(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server %s:%d failed to start - %v.", cfg.Host, cfg.Port, err)
+		adr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+		if err := http.ListenAndServe(adr, doc); err != nil {
+			msg := "Server[%s] fault with %v"
+			log.Fatalf(msg, adr, err)
 		}
+		msg := "Server[%s] successfuly started"
+		log.Printf(msg, adr)
 	}()
 
 	// Graceful shutdown
@@ -39,18 +48,5 @@ func main() {
 	defer stop()
 	// Wait for context to be cancelled
 	<-ctx.Done()
-
-	// Create a new context with a timeout for the shutdown process
-	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancelShutdown()
-	// Attempt to gracefully shut down server
-	if err := doc.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("Server shutdown failed - %v.", err)
-	}
-
 	log.Println("Server gracefully stopped.")
-}
-
-func gracefulShutdown() {
-
 }

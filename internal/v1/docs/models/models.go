@@ -17,6 +17,11 @@ type ResponseMultipleDocuments struct {
 	Documents  []Document `json:"documents"`
 }
 
+type ResponseSingleDocument struct {
+	StatusCode int      `json:"status_code"`
+	Document   Document `json:"document"`
+}
+
 type ResponseCode struct {
 	StatusCode int `json:"status_code"`
 }
