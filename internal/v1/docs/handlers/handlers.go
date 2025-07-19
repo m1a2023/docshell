@@ -33,6 +33,14 @@ func GetDocumentById(w http.ResponseWriter, r *http.Request) {
 }
 
 func CreateDocument(w http.ResponseWriter, r *http.Request) {
+	// Parse multipart form, specifies a maximum upload size.
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		utils.SendJSONResponse(w, models.ResponseCode{
+			StatusCode: http.StatusBadRequest,
+		})
+		return
+	}
+
 	// Struct to put in it parsed body
 	var dc models.DocumentCreation
 
@@ -42,15 +50,31 @@ func CreateDocument(w http.ResponseWriter, r *http.Request) {
 		utils.SendJSONResponse(w, models.ResponseCode{
 			StatusCode: http.StatusBadRequest,
 		})
+		return
 	}
+
+	// FormFile returns the first file for the given key `file`
+	// it also returns the FileHeader so we can get the Filename,
+	// the Header and the size of the file
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		utils.SendJSONResponse(w, models.ResponseCode{
+			StatusCode: http.StatusBadRequest,
+		})
+		return
+	}
+	defer file.Close()
+
 	// Try to decode body into the struct
 	if err := json.Unmarshal([]byte(body), &dc); err != nil {
 		utils.SendJSONResponse(w, models.ResponseCode{
 			StatusCode: http.StatusInternalServerError,
 		})
+		return
 	}
+
 	// Set context for chain
 	ctx := context.Background()
 	// Call next function
-	service.CreateDocument(ctx, w, r, dc)
+	service.CreateDocument(ctx, w, r, file, header, dc)
 }

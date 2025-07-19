@@ -1,11 +1,14 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"docshell/internal/v1/docs/models"
 	"docshell/internal/v1/docs/repository"
 	"docshell/internal/v1/utils"
+	"io"
 	"log"
+	"mime/multipart"
 	"sync"
 
 	"docshell/internal/v1/storage"
@@ -93,46 +96,45 @@ func GetDocumentById(ctx context.Context, w http.ResponseWriter, r *http.Request
 	}
 }
 
-func CreateDocument(ctx context.Context, w http.ResponseWriter, r *http.Request, dc models.DocumentCreation) {
-	// * Fill the @dc
+func CreateDocument(ctx context.Context, w http.ResponseWriter, r *http.Request, file io.Reader, header *multipart.FileHeader, dc models.DocumentCreation) {
+	// Read all flie to memory
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		utils.SendJSONResponse(w, models.ResponseCode{
+			StatusCode: http.StatusInternalServerError,
+		})
+	}
+
+	// Fill DocumentCreation
+	dc.Size = int(header.Size)
+	dc.Hash, err = utils.GenerateHash(fileBytes)
+	if err != nil {
+		utils.SendJSONResponse(w, models.ResponseCode{
+			StatusCode: http.StatusBadRequest,
+		})
+		return
+	}
 
 	// Set context to cancel if error occured
 	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
 	// Set error chan to save goroutines error
 	errChan := make(chan error, 2)
 	// Set wait group to synchronize goroutines
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	// Parse multipart form, specifies a maximum upload size.
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		utils.SendJSONResponse(w, models.ResponseCode{
-			StatusCode: http.StatusBadRequest,
-		})
-		cancel(err)
-		return
-	}
-
-	// FormFile returns the first file for the given key `file`
-	// it also returns the FileHeader so we can get the Filename,
-	// the Header and the size of the file
-	file, handler, err := r.FormFile("file")
-	if err != nil {
-		utils.SendJSONResponse(w, models.ResponseCode{
-			StatusCode: http.StatusBadRequest,
-		})
-		cancel(err)
-		return
-	}
-	defer file.Close()
-
 	// Get db connection
 	con := storage.GetConnection()
+
+	// Create document that will send user
+	var doc models.Document
 
 	// Save document record to database
 	go func() { // Save to db
 		defer wg.Done()
-		doc, err := repository.CreateDocument(ctx, con, dc)
+		var err error
+		doc, err = repository.CreateDocument(ctx, con, dc)
 		if err != nil {
 			errChan <- err
 			cancel(err)
@@ -142,7 +144,7 @@ func CreateDocument(ctx context.Context, w http.ResponseWriter, r *http.Request,
 	// Saves file to specified directory
 	go func() {
 		defer wg.Done()
-		if err := utils.UploadFile(ctx, file, handler); err != nil {
+		if err := utils.UploadFile(ctx, bytes.NewReader(fileBytes), header); err != nil {
 			errChan <- err
 			cancel(err)
 		}
@@ -153,22 +155,21 @@ func CreateDocument(ctx context.Context, w http.ResponseWriter, r *http.Request,
 	close(errChan)
 
 	// If errors occured, write to logs
-	isErr := false
-	for e := range errChan {
-		if e != nil {
-			isErr = true
-			log.Println(e)
+	for err := range errChan {
+		if err != nil {
+			log.Println(err)
 		}
 	}
 
-	// Sends ResponseCode
-	if isErr {
+	// Sends Response
+	if ctx.Err() != nil {
 		utils.SendJSONResponse(w, models.ResponseCode{
 			StatusCode: http.StatusInternalServerError,
 		})
 	} else {
-		utils.SendJSONResponse(w, models.ResponseCode{
+		utils.SendJSONResponse(w, models.ResponseSingleDocument{
 			StatusCode: http.StatusOK,
+			Document:   doc,
 		})
 	}
 }
