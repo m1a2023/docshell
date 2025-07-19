@@ -48,3 +48,8 @@ func GetDocumentById(ctx context.Context, con *sql.DB, id int) (models.Document,
 	}
 	return doc, nil
 }
+
+func CreateDocument(ctx context.Context, con *sql.DB, dc models.DocumentCreation) (models.Document, error) {
+	// TODO
+	return models.Document{}, nil
+}

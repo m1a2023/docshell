@@ -9,10 +9,13 @@ import (
 
 var Config Configuration
 
+// ? get config path from CLI or PathVar ?
 const CONFIG_PATH = "config.yaml"
 
 type Configuration struct {
 	Version string `yaml:"version"`
+
+	Volume string `yaml:"volume"`
 
 	Service struct {
 		Web struct {

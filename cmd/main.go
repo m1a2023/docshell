@@ -15,7 +15,6 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-// TODO Move Graceful shutdown to function
 func main() {
 	cfg := doconf.Config.Service.Web
 
@@ -30,17 +29,18 @@ func main() {
 	doc.Route("/docs", func(r chi.Router) {
 		r.Get("/", handlers.GetAllDocuments)
 		r.Get("/id/{id}", handlers.GetDocumentById)
+		r.Post("/", handlers.CreateDocument)
 	})
 
 	// Start server with goroutine
 	go func() {
 		adr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+		msg := "Server[%s] successfuly started"
+		log.Printf(msg, adr)
 		if err := http.ListenAndServe(adr, doc); err != nil {
 			msg := "Server[%s] fault with %v"
 			log.Fatalf(msg, adr, err)
 		}
-		msg := "Server[%s] successfuly started"
-		log.Printf(msg, adr)
 	}()
 
 	// Graceful shutdown
