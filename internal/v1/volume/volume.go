@@ -30,7 +30,3 @@ func setupVolume(path string) string {
 func GetPath() string {
 	return path
 }
-
-// Save saves file to specified path in volume
-// func (v *volume) Save(f *os.File, path string) {
-// }

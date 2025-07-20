@@ -13,9 +13,15 @@ import (
 	"path/filepath"
 )
 
-func UploadFile(ctx context.Context, file io.Reader, handler *multipart.FileHeader) error {
+func UploadFile(ctx context.Context, path string, file io.Reader, handler *multipart.FileHeader) error {
+	// Create path if not exists
+	volDir := filepath.Join(volume.GetPath(), path)
+	if err := CreateDir(volDir); err != nil {
+		return err
+	}
+
 	// Create a temporary file in the volume's directory
-	tempFile, err := os.CreateTemp(volume.GetPath(), "upload_*")
+	tempFile, err := os.CreateTemp(volDir, "upload_*")
 	if err != nil {
 		return err
 	}
@@ -46,7 +52,7 @@ func UploadFile(ctx context.Context, file io.Reader, handler *multipart.FileHead
 	}
 
 	// Rename the temporary file to the original filename
-	newPath := filepath.Join(volume.GetPath(), handler.Filename)
+	newPath := filepath.Join(volDir, handler.Filename)
 	if err := os.Rename(tempFile.Name(), newPath); err != nil {
 		return err
 	}
@@ -73,4 +79,8 @@ func GenerateHash(b []byte) (hash string, err error) {
 	}
 	sum := sha.Sum(nil)
 	return hex.EncodeToString(sum), nil
+}
+
+func CreateDir(path string) error {
+	return os.MkdirAll(path, 0666)
 }

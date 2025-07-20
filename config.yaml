@@ -1,20 +1,30 @@
+# Version of the service
 version: "0.1"
+
+# Path to save documents
+# and specified directories
 volume: "D:/tmp/docshell/docs"
+
+# General service configuration
 service:
+  # 'web' field will form
+  # server host and port
   web:
     host: 0.0.0.0
     port: 8080
 
   db:
+    # 'db' fields will form
+    # database connection string
     host: 0.0.0.0
-    port: 5432
+    port: 2345
     sslmode: disable
-
+    # 'environment' and 'settings' fields will form
+    # environment settings for database
     environment:
       POSTGRES_DB: docshell
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-
     settings:
       MAX_IDLE_TIME: 5
       MAX_CONN_LIFE: 30

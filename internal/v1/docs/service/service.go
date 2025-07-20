@@ -144,7 +144,9 @@ func CreateDocument(ctx context.Context, w http.ResponseWriter, r *http.Request,
 	// Saves file to specified directory
 	go func() {
 		defer wg.Done()
-		if err := utils.UploadFile(ctx, bytes.NewReader(fileBytes), header); err != nil {
+		addPath := dc.Path
+		reader := bytes.NewReader(fileBytes)
+		if err := utils.UploadFile(ctx, addPath, reader, header); err != nil {
 			errChan <- err
 			cancel(err)
 		}
