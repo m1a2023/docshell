@@ -6,6 +6,7 @@ import (
 	"docshell/internal/v1/docs/service"
 	"docshell/internal/v1/utils"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 )
@@ -20,10 +21,9 @@ func GetAllDocuments(w http.ResponseWriter, r *http.Request) {
 func GetDocumentById(w http.ResponseWriter, r *http.Request) {
 	// Read path value
 	id, err := strconv.Atoi(r.PathValue("id"))
-	if err != nil || 0 >= id { // Send 400
-		utils.SendJSONResponse(w, models.ResponseCode{
-			StatusCode: http.StatusBadRequest,
-		})
+	if err != nil || 0 >= id {
+		msg := fmt.Sprintf("Path value 'id=%v' incorrect", id)
+		utils.SendJSONErrorResponse(w, http.StatusBadRequest, msg)
 		return
 	}
 	// Set context for chain
@@ -34,10 +34,9 @@ func GetDocumentById(w http.ResponseWriter, r *http.Request) {
 
 func CreateDocument(w http.ResponseWriter, r *http.Request) {
 	// Parse multipart form, specifies a maximum upload size.
-	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		utils.SendJSONResponse(w, models.ResponseCode{
-			StatusCode: http.StatusBadRequest,
-		})
+	if err := r.ParseMultipartForm(1 << 20); err != nil {
+		msg := "During parsing multupart form"
+		utils.SendJSONErrorResponse(w, http.StatusBadRequest, msg)
 		return
 	}
 
@@ -47,9 +46,8 @@ func CreateDocument(w http.ResponseWriter, r *http.Request) {
 	// Read body
 	body := r.FormValue("meta")
 	if body == "" { // if empty
-		utils.SendJSONResponse(w, models.ResponseCode{
-			StatusCode: http.StatusBadRequest,
-		})
+		msg := "Body is empty"
+		utils.SendJSONErrorResponse(w, http.StatusBadRequest, msg)
 		return
 	}
 
@@ -58,18 +56,16 @@ func CreateDocument(w http.ResponseWriter, r *http.Request) {
 	// the Header and the size of the file
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		utils.SendJSONResponse(w, models.ResponseCode{
-			StatusCode: http.StatusBadRequest,
-		})
+		msg := "Form file incorrect"
+		utils.SendJSONErrorResponse(w, http.StatusBadRequest, msg)
 		return
 	}
 	defer file.Close()
 
 	// Try to decode body into the struct
 	if err := json.Unmarshal([]byte(body), &dc); err != nil {
-		utils.SendJSONResponse(w, models.ResponseCode{
-			StatusCode: http.StatusInternalServerError,
-		})
+		msg := "JSON is incorrect"
+		utils.SendJSONErrorResponse(w, http.StatusBadRequest, msg)
 		return
 	}
 

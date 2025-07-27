@@ -7,9 +7,4 @@ RUN go mod download
 COPY . . 
 RUN CGO_ENABLED=0 go build -o docshell ./cmd
 
-FROM alpine:latest 
-
-WORKDIR /root/
-COPY --from=builder /usr/src/app/docshell .
-
 CMD [ "./docshell" ]

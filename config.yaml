@@ -4,7 +4,7 @@ version: "0.1"
 # Path to save documents
 # and specified directories
 volume: "D:/tmp/docshell/docs"
-
+# "/var/usr/data"
 # General service configuration
 service:
   # 'web' field will form
@@ -17,7 +17,7 @@ service:
     # 'db' fields will form
     # database connection string
     host: 0.0.0.0
-    port: 2345
+    port: 3333
     sslmode: disable
     # 'environment' and 'settings' fields will form
     # environment settings for database

@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"crypto/sha512"
+	"docshell/internal/v1/docs/models"
 	"docshell/internal/v1/volume"
 	"encoding/hex"
 	"encoding/json"
@@ -68,7 +69,22 @@ func UploadFile(ctx context.Context, path string, file io.Reader, handler *multi
 }
 
 func SendJSONResponse(w http.ResponseWriter, res any) {
+	w.Header().Add("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(res)
+}
+
+func SendJSONErrorResponse(w http.ResponseWriter, code int, msg string) {
+	// Send http error
+	http.Error(w, msg, code)
+	// Send json error response
+
+	SendJSONResponse(w,
+		models.ErrorResponse{
+			StatusCode: code,
+			StatusText: http.StatusText(code),
+			Message:    msg,
+		},
+	)
 }
 
 func GenerateHash(b []byte) (hash string, err error) {

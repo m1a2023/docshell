@@ -1,11 +1,11 @@
 package models
 
 type Document struct {
-	Id         int    `json:"id" db:"id"`
-	AuthorId   int    `json:"author_id" db:"author_id"`
-	UploaderId int    `json:"uploader_id" db:"uploader_id"`
+	Id         int64  `json:"id" db:"id"`
+	AuthorId   int64  `json:"author_id" db:"author_id"`
+	UploaderId int64  `json:"uploader_id" db:"uploader_id"`
 	Title      string `json:"title" db:"title"`
-	Size       int    `json:"size" db:"size"`
+	Size       int64  `json:"size" db:"size"`
 	Path       string `json:"path" db:"path"`
 	Hash       string `json:"hash" db:"hash"`
 	CreatedAt  string `json:"created_at" db:"created_at"`
@@ -13,10 +13,10 @@ type Document struct {
 }
 
 type DocumentCreation struct {
-	AuthorId   int    `json:"author_id" db:"author_id"`
-	UploaderId int    `json:"uploader_id" db:"uploader_id"`
+	AuthorId   int64  `json:"author_id" db:"author_id"`
+	UploaderId int64  `json:"uploader_id" db:"uploader_id"`
 	Title      string `json:"title" db:"title"`
-	Size       int    `json:"size" db:"size"`
+	Size       int64  `json:"size" db:"size"`
 	Path       string `json:"path" db:"path"`
 	Hash       string `json:"hash" db:"hash"`
 }
@@ -33,4 +33,10 @@ type ResponseSingleDocument struct {
 
 type ResponseCode struct {
 	StatusCode int `json:"status_code"`
+}
+
+type ErrorResponse struct {
+	StatusCode int    `json:"status_code"`
+	StatusText string `json:"text"`
+	Message    string `json:"msg"`
 }

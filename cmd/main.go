@@ -4,6 +4,7 @@ import (
 	"context"
 	doconf "docshell/internal/v1/config"
 	"docshell/internal/v1/docs/handlers"
+	"docshell/internal/v1/middleware/cors"
 	"fmt"
 	"log"
 	"net/http"
@@ -23,6 +24,7 @@ func main() {
 
 	// Apply middlewares
 	doc.Use(middleware.Logger)
+	doc.Use(cors.CORSMiddleware)
 	doc.Use(middleware.Recoverer)
 
 	// Adding routes

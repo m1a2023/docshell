@@ -13,12 +13,12 @@ var path string
 func init() {
 	cfg := doconf.Config
 	path = setupVolume(cfg.Volume)
+	log.Printf("Choosed volume path %v", path)
 }
 
 // Setup volume for saving documents
 func setupVolume(path string) string {
 	// Create volume
-	log.Printf("out %s", path)
 	err := os.MkdirAll(path, os.ModePerm)
 	if err != nil {
 		msg := "Unable to create volume %s, because of %v"

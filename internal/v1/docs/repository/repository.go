@@ -49,7 +49,25 @@ func GetDocumentById(ctx context.Context, con *sql.DB, id int) (models.Document,
 	return doc, nil
 }
 
-// TODO
 func CreateDocument(ctx context.Context, con *sql.DB, dc models.DocumentCreation) (models.Document, error) {
-	return models.Document{}, nil
+	// Insert document and return it
+	rows, err := con.QueryContext(ctx, insert_document,
+		dc.AuthorId, dc.UploaderId, dc.Title, dc.Size, dc.Path, dc.Hash,
+	)
+	if err != nil {
+		return models.Document{}, nil
+	}
+
+	// Build response
+	// In fact, there is one itereation because of query
+	doc := models.Document{}
+	for rows.Next() {
+		// Scan row
+		if err := rows.Scan(&doc.Id, &doc.AuthorId, &doc.UploaderId,
+			&doc.Title, &doc.Size, &doc.Path, &doc.Hash, &doc.CreatedAt, &doc.ChangedAt); err != nil {
+			return models.Document{}, err
+		}
+	}
+
+	return doc, nil
 }

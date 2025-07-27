@@ -6,6 +6,7 @@ import (
 	"docshell/internal/v1/docs/models"
 	"docshell/internal/v1/docs/repository"
 	"docshell/internal/v1/utils"
+	"errors"
 	"io"
 	"log"
 	"mime/multipart"
@@ -27,31 +28,29 @@ func GetAllDocuments(ctx context.Context, w http.ResponseWriter, r *http.Request
 	// Get all documents from repository
 	docs, err := repository.GetAllDocuments(ctx, con)
 	if err != nil {
-		utils.SendJSONResponse(w, models.ResponseCode{
-			StatusCode: http.StatusInternalServerError,
-		})
+		msg := "Database error: could not read docs"
+		utils.SendJSONErrorResponse(w, http.StatusInternalServerError, msg)
 		return
 	}
-	// Build response
-	res := models.ResponseMultipleDocuments{
-		StatusCode: http.StatusOK,
-		Documents:  make([]models.Document, len(docs)),
-	}
-	// Copy documents
-	copy(res.Documents, docs)
 
 	select {
 	case <-ctx.Done(): // Context exceeded
 		if ctx.Err() == context.DeadlineExceeded {
-			utils.SendJSONResponse(w, models.ResponseCode{
-				StatusCode: http.StatusRequestTimeout,
-			})
+			msg := "Request timeout"
+			utils.SendJSONErrorResponse(w, http.StatusRequestTimeout, msg)
 		} else { // Other error
-			utils.SendJSONResponse(w, models.ResponseCode{
-				StatusCode: http.StatusInternalServerError,
-			})
+			msg := "Unknown error"
+			utils.SendJSONErrorResponse(w, http.StatusInternalServerError, msg)
 		}
 	default: // Success
+		// Build response
+		res := models.ResponseMultipleDocuments{
+			StatusCode: http.StatusOK,
+			Documents:  make([]models.Document, len(docs)),
+		}
+		// Copy documents
+		copy(res.Documents, docs)
+
 		utils.SendJSONResponse(w, res)
 	}
 }
@@ -67,32 +66,26 @@ func GetDocumentById(ctx context.Context, w http.ResponseWriter, r *http.Request
 	// Get document
 	doc, err := repository.GetDocumentById(ctx, con, id)
 	if err != nil {
-		utils.SendJSONResponse(w, models.ResponseCode{
-			StatusCode: http.StatusInternalServerError,
-		})
-		log.Println(err)
+		msg := "Internal server error"
+		utils.SendJSONErrorResponse(w, http.StatusInternalServerError, msg)
 		return
 	}
 	// Send NoContent if empty
 	if doc == (models.Document{}) {
-		utils.SendJSONResponse(w, models.ResponseCode{
-			StatusCode: http.StatusNoContent,
-		})
+		msg := "Requested document not found"
+		utils.SendJSONErrorResponse(w, http.StatusNotFound, msg)
 		return
-	}
-	// Build response
-	res := models.ResponseSingleDocument{
-		StatusCode: http.StatusOK,
-		Document:   doc,
 	}
 
 	select {
 	case <-ctx.Done(): // Context exceed
-		utils.SendJSONResponse(w, models.ResponseCode{
-			StatusCode: http.StatusRequestTimeout,
-		})
+		msg := "Internal context exceed"
+		utils.SendJSONErrorResponse(w, http.StatusRequestTimeout, msg)
 	default: // Success
-		utils.SendJSONResponse(w, res)
+		utils.SendJSONResponse(w, models.ResponseSingleDocument{
+			StatusCode: http.StatusOK,
+			Document:   doc,
+		})
 	}
 }
 
@@ -100,18 +93,18 @@ func CreateDocument(ctx context.Context, w http.ResponseWriter, r *http.Request,
 	// Read all flie to memory
 	fileBytes, err := io.ReadAll(file)
 	if err != nil {
-		utils.SendJSONResponse(w, models.ResponseCode{
-			StatusCode: http.StatusInternalServerError,
-		})
+		msg := "Document can not be read"
+		utils.SendJSONErrorResponse(w, http.StatusInternalServerError, msg)
+		return
 	}
 
-	// Fill DocumentCreation
-	dc.Size = int(header.Size)
+	// Fill DocumentCreation fields
+	dc.Title = header.Filename
+	dc.Size = header.Size
 	dc.Hash, err = utils.GenerateHash(fileBytes)
 	if err != nil {
-		utils.SendJSONResponse(w, models.ResponseCode{
-			StatusCode: http.StatusBadRequest,
-		})
+		msg := "Hash generation fault"
+		utils.SendJSONErrorResponse(w, http.StatusInternalServerError, msg)
 		return
 	}
 
@@ -131,11 +124,19 @@ func CreateDocument(ctx context.Context, w http.ResponseWriter, r *http.Request,
 	var doc models.Document
 
 	// Save document record to database
-	go func() { // Save to db
+	go func() {
 		defer wg.Done()
-		var err error
-		doc, err = repository.CreateDocument(ctx, con, dc)
-		if err != nil {
+		if doc, err = repository.CreateDocument(ctx, con, dc); err != nil {
+			errChan <- err
+			cancel(err)
+		}
+
+		// May be caused by a hash column integrity violation
+		// http code 409 (Conflict) here
+		if (doc == models.Document{}) {
+			// TODO Change hash UNIQUENESS
+			text := http.StatusText(http.StatusConflict)
+			err := errors.New(text)
 			errChan <- err
 			cancel(err)
 		}
@@ -164,11 +165,18 @@ func CreateDocument(ctx context.Context, w http.ResponseWriter, r *http.Request,
 	}
 
 	// Sends Response
-	if ctx.Err() != nil {
-		utils.SendJSONResponse(w, models.ResponseCode{
-			StatusCode: http.StatusInternalServerError,
-		})
-	} else {
+	select {
+	case <-ctx.Done():
+		cause := context.Cause(ctx)
+		// Choose correct http code for response
+		if cause.Error() == http.StatusText(http.StatusConflict) {
+			msg := "Document already exists"
+			utils.SendJSONErrorResponse(w, http.StatusConflict, msg)
+		} else {
+			msg := "Internal context exceed"
+			utils.SendJSONErrorResponse(w, http.StatusConflict, msg)
+		}
+	default:
 		utils.SendJSONResponse(w, models.ResponseSingleDocument{
 			StatusCode: http.StatusOK,
 			Document:   doc,
