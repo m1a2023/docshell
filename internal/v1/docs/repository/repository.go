@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"docshell/internal/v1/docs/models"
+	"docshell/internal/v1/storage"
 )
 
 func GetAllDocuments(ctx context.Context, con *sql.DB) ([]models.Document, error) {
@@ -15,18 +16,12 @@ func GetAllDocuments(ctx context.Context, con *sql.DB) ([]models.Document, error
 	defer rows.Close()
 
 	// Build response
-	res := []models.Document{}
-	for rows.Next() {
-		doc := models.Document{}
-		// Scan row
-		if err := rows.Scan(&doc.Id, &doc.AuthorId, &doc.UploaderId,
-			&doc.Title, &doc.Size, &doc.Path, &doc.Hash, &doc.CreatedAt, &doc.ChangedAt); err != nil {
-			return nil, err
-		}
-		res = append(res, doc)
+	docs, err := storage.ScanMany(rows, models.ScanDocument)
+	if err != nil {
+		return nil, err
 	}
 
-	return res, err
+	return docs, err
 }
 
 func GetDocumentById(ctx context.Context, con *sql.DB, id int) (models.Document, error) {
@@ -35,16 +30,12 @@ func GetDocumentById(ctx context.Context, con *sql.DB, id int) (models.Document,
 	if err != nil {
 		return models.Document{}, err
 	}
+	defer rows.Close()
 
 	// Build response
-	// In fact, there is one itereation because of query
-	doc := models.Document{}
-	for rows.Next() {
-		// Scan row
-		if err := rows.Scan(&doc.Id, &doc.AuthorId, &doc.UploaderId,
-			&doc.Title, &doc.Size, &doc.Path, &doc.Hash, &doc.CreatedAt, &doc.ChangedAt); err != nil {
-			return models.Document{}, err
-		}
+	doc, err := storage.ScanSingle(rows, models.ScanDocument)
+	if err != nil {
+		return models.Document{}, err
 	}
 	return doc, nil
 }
@@ -57,17 +48,28 @@ func CreateDocument(ctx context.Context, con *sql.DB, dc models.DocumentCreation
 	if err != nil {
 		return models.Document{}, nil
 	}
+	defer rows.Close()
 
 	// Build response
-	// In fact, there is one itereation because of query
-	doc := models.Document{}
-	for rows.Next() {
-		// Scan row
-		if err := rows.Scan(&doc.Id, &doc.AuthorId, &doc.UploaderId,
-			&doc.Title, &doc.Size, &doc.Path, &doc.Hash, &doc.CreatedAt, &doc.ChangedAt); err != nil {
-			return models.Document{}, err
-		}
+	doc, err := storage.ScanSingle(rows, models.ScanDocument)
+	if err != nil {
+		return models.Document{}, nil
 	}
 
 	return doc, nil
+}
+
+func GetManyDocementsByRowWithArg(ctx context.Context, con *sql.DB, row string, arg any) ([]models.Document, error) {
+	rows, err := con.QueryContext(ctx, get_documents_by_, row, arg)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build response
+	docs, err := storage.ScanMany(rows, models.ScanDocument)
+	if err != nil {
+		return nil, err
+	}
+
+	return docs, nil
 }

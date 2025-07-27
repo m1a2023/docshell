@@ -11,4 +11,6 @@ const (
 				$1, $2, $3, $4, $5, $6
 				) returning *;
 	`
+
+	get_documents_by_ = `select * from documents where $1=$2`
 )
