@@ -6,10 +6,14 @@ import (
 	"docshell/internal/v1/docs/models"
 	"docshell/internal/v1/docs/repository"
 	"docshell/internal/v1/utils"
+	"docshell/internal/v1/volume"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"mime/multipart"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"docshell/internal/v1/storage"
@@ -50,7 +54,6 @@ func GetAllDocuments(ctx context.Context, w http.ResponseWriter, r *http.Request
 		}
 		// Copy documents
 		copy(res.Documents, docs)
-
 		utils.SendJSONResponse(w, res)
 	}
 }
@@ -101,6 +104,7 @@ func CreateDocument(ctx context.Context, w http.ResponseWriter, r *http.Request,
 	// Fill DocumentCreation fields
 	dc.Title = header.Filename
 	dc.Size = header.Size
+	// dc.Path = filepath.Join(volume.GetPath(), )
 	dc.Hash, err = utils.GenerateHash(fileBytes)
 	if err != nil {
 		msg := "Hash generation fault"
@@ -181,5 +185,29 @@ func CreateDocument(ctx context.Context, w http.ResponseWriter, r *http.Request,
 			StatusCode: http.StatusOK,
 			Document:   doc,
 		})
+	}
+}
+
+func DownloadDocument(ctx context.Context, w http.ResponseWriter, r *http.Request, path string) {
+	// Build path to file
+	vol := volume.GetPath()
+	path = filepath.Join(vol, path)
+	// Open file
+	file, err := os.Open(path)
+	if err != nil {
+		msg := fmt.Sprintf("Could not open file %v", path)
+		utils.SendJSONErrorResponse(w, http.StatusInternalServerError, msg)
+		return
+	}
+	defer file.Close()
+	// Set headers
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", file.Name()))
+	w.Header().Set("Content-Type", "application/octet-stream")
+	// Save file to user
+	_, err = io.Copy(w, file)
+	if err != nil {
+		msg := fmt.Sprintf("Could not copy file %v", path)
+		utils.SendJSONErrorResponse(w, http.StatusInternalServerError, msg)
+		return
 	}
 }

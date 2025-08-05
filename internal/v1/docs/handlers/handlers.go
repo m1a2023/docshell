@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 )
 
@@ -73,4 +74,25 @@ func CreateDocument(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	// Call next function
 	service.CreateDocument(ctx, w, r, file, header, dc)
+}
+
+func DownloadDocument(w http.ResponseWriter, r *http.Request) {
+	// Read query param
+	path := r.URL.Query().Get("path")
+	if path == "" {
+		msg := fmt.Sprintf("Path value 'path=%v' incorrect", path)
+		utils.SendJSONErrorResponse(w, http.StatusBadRequest, msg)
+		return
+	}
+	// Decode query param
+	decoded, err := url.QueryUnescape(path)
+	if err != nil {
+		msg := fmt.Sprintf("Could not decode 'path=%v' incorrect", path)
+		utils.SendJSONErrorResponse(w, http.StatusBadRequest, msg)
+		return
+	}
+	// Set context for chain
+	ctx := context.Background()
+	// Call next function and pass context
+	service.DownloadDocument(ctx, w, r, decoded)
 }

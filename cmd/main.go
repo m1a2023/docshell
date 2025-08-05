@@ -31,7 +31,11 @@ func main() {
 	doc.Route("/docs", func(r chi.Router) {
 		r.Get("/", handlers.GetAllDocuments)
 		r.Get("/id/{id}", handlers.GetDocumentById)
+
 		r.Post("/", handlers.CreateDocument)
+
+		// With query parameter 'path'
+		r.Get("/download", handlers.DownloadDocument)
 	})
 
 	// Start server with goroutine
