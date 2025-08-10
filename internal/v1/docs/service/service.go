@@ -92,7 +92,8 @@ func GetDocumentById(ctx context.Context, w http.ResponseWriter, r *http.Request
 	}
 }
 
-func CreateDocument(ctx context.Context, w http.ResponseWriter, r *http.Request, file io.Reader, header *multipart.FileHeader, dc models.DocumentCreation) {
+func CreateDocument(ctx context.Context, w http.ResponseWriter, r *http.Request,
+	file io.Reader, header *multipart.FileHeader, dc models.DocumentCreation) {
 	// Read all flie to memory
 	fileBytes, err := io.ReadAll(file)
 	if err != nil {
@@ -104,7 +105,7 @@ func CreateDocument(ctx context.Context, w http.ResponseWriter, r *http.Request,
 	// Fill DocumentCreation fields
 	dc.Title = header.Filename
 	dc.Size = header.Size
-	// dc.Path = filepath.Join(volume.GetPath(), )
+	dc.Path = filepath.Clean(dc.Path)
 	dc.Hash, err = utils.GenerateHash(fileBytes)
 	if err != nil {
 		msg := "Hash generation fault"
